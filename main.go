@@ -11,12 +11,19 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-// Version information (set by GoReleaser)
+// Version information (set by GoReleaser).
 var (
 	version = "dev"
 	commit  = "none"
 	date    = "unknown"
 	builtBy = "local"
+)
+
+// AI provider constants.
+const (
+	ProviderClaude  = "claude"
+	ProviderGemini  = "gemini"
+	ProviderCopilot = "copilot"
 )
 
 func main() {
@@ -28,7 +35,7 @@ func main() {
 			&cli.StringFlag{
 				Name:  "provider",
 				Usage: "AI provider to use (claude*, gemini, copilot)",
-				Value: "claude",
+				Value: ProviderClaude,
 			},
 		},
 		Commands: []*cli.Command{
@@ -45,7 +52,7 @@ func main() {
 							&cli.StringFlag{
 								Name:  "provider",
 								Usage: "AI provider to use (claude*, gemini, copilot)",
-								Value: "claude",
+								Value: ProviderClaude,
 							},
 						},
 						Action: generateCommitMessage("staged"),
@@ -58,7 +65,7 @@ func main() {
 							&cli.StringFlag{
 								Name:  "provider",
 								Usage: "AI provider to use (claude*, gemini, copilot)",
-								Value: "claude",
+								Value: ProviderClaude,
 							},
 						},
 						Action: generateCommitMessage("all"),
@@ -71,7 +78,7 @@ func main() {
 							&cli.StringFlag{
 								Name:  "provider",
 								Usage: "AI provider to use (claude*, gemini, copilot)",
-								Value: "claude",
+								Value: ProviderClaude,
 							},
 						},
 						Action: generateCommitMessage("untracked"),
@@ -137,7 +144,7 @@ func generateCommitMessage(mode string) cli.ActionFunc {
 
 		provider := c.String("provider")
 		if provider == "" {
-			provider = "claude" // default provider
+			provider = ProviderClaude // default provider
 		}
 
 		commitMessage, err := callAIAPI(analysisInput, provider)
@@ -270,7 +277,7 @@ func analyzeAllChanges() (string, error) {
 
 	if untrackedFiles != "" {
 		files := strings.Split(untrackedFiles, "\n")
-		analysisInput.WriteString(fmt.Sprintf("\n=== UNTRACKED FILES ===\n"))
+		analysisInput.WriteString("\n=== UNTRACKED FILES ===\n")
 		analysisInput.WriteString(fmt.Sprintf("%s\n\n", strings.Join(files, " ")))
 		analysisInput.WriteString("=== FILE CONTENTS ===\n")
 
@@ -345,11 +352,11 @@ Git diff analysis:
 	var cmd *exec.Cmd
 
 	switch {
-	case strings.HasPrefix(provider, "claude"):
+	case strings.HasPrefix(provider, ProviderClaude):
 		cmd = exec.Command("claude")
-	case provider == "gemini":
+	case provider == ProviderGemini:
 		cmd = exec.Command("gemini")
-	case provider == "copilot":
+	case provider == ProviderCopilot:
 		cmd = exec.Command("copilot")
 	default:
 		return "", fmt.Errorf("unsupported provider: %s", provider)

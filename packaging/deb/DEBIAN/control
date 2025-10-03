@@ -1,9 +1,9 @@
 Package: commitgen
-Version: 1.0.0
+Version: 0.1.0
 Section: devel
 Priority: optional
 Architecture: amd64
-Maintainer: FreePeak <contact@freepeak.com>
+Maintainer: linhdmn <mnhatlinh.doan@gmail.com>
 Description: AI-powered commit message generator
  Commitgen is a CLI tool that generates conventional commit messages
  using AI to help maintain consistent and meaningful commit history.

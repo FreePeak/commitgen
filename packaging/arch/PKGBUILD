@@ -1,6 +1,6 @@
-# Maintainer: FreePeak <contact@freepeak.com>
+# Maintainer: linhdmn <mnhatlinh.doan@gmail.com>
 pkgname=commitgen
-pkgver=1.0.0
+pkgver=0.1.0
 pkgrel=1
 pkgdesc="AI-powered commit message generator"
 arch=('x86_64' 'aarch64')

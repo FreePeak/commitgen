@@ -1,8 +1,10 @@
 run:
   timeout: 5m
   go: '1.21'
+  modules-download-mode: readonly
 
 linters:
+  disable-all: true
   enable:
     - gofmt
     - goimports
@@ -11,17 +13,26 @@ linters:
     - staticcheck
     - unused
     - gosimple
-    - structcheck
-    - varcheck
     - ineffassign
-    - deadcode
     - typecheck
     - gosec
     - misspell
     - unconvert
-    - dupl
     - goconst
     - gocyclo
+    - funlen
+    - gocritic
+    - godot
+    - goerr113
+    - gofumpt
+    - nolintlint
+    - rowserrcheck
+    - sqlclosecheck
+    - unparam
+    - nilerr
+    - nilnil
+    - prealloc
+    - predeclared
 
 linters-settings:
   goimports:
@@ -34,12 +45,36 @@ linters-settings:
     min-len: 3
     min-occurrences: 3
 
-  dupl:
-    threshold: 100
+  funlen:
+    lines: 100
+    statements: 50
+
+  gofumpt:
+    extra-rules: true
+
+  nolintlint:
+    require-explanation: true
+    require-specific: true
 
 issues:
   exclude-rules:
-    - path: _test\.go
+    # Exclude known linter issues
+    - path: _test.go
       linters:
         - gosec
-        - dupl
+        - funlen
+        - goconst
+
+    # Exclude some errcheck issues
+    - linters:
+        - errcheck
+      text: "Error return value of .((os.)?std(out|err)..*|.*Close|.*Flush|os.Remove(All)?|.*printf?|os.(Un)?Setenv). is not checked"
+
+    # Exclude main function
+    - path: main.go
+      linters:
+        - funlen
+
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
