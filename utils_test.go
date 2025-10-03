@@ -3,6 +3,8 @@ package main
 import (
 	"strings"
 	"testing"
+
+	"github.com/FreePeak/commitgen/pkg/commitrules"
 )
 
 func TestCleanCommitMessage(t *testing.T) {
@@ -56,13 +58,23 @@ func TestCleanCommitMessage(t *testing.T) {
 			input:    "fix: resolve bug   \n\n  ",
 			expected: "fix: resolve bug",
 		},
+		{
+			name:     "descriptive response with commit message",
+			input:    "Based on the changes, the commit message should be: \"feat: add new feature\"",
+			expected: "feat: add new feature",
+		},
+		{
+			name:     "long descriptive response",
+			input:    "Looking at the git diff, I can see this is a major refactoring. The commit message is: refactor(core): extract validation logic",
+			expected: "refactor(core): extract validation logic",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := cleanCommitMessage(tt.input)
+			result := commitrules.CleanCommitMessage(tt.input)
 			if result != tt.expected {
-				t.Errorf("cleanCommitMessage(%q) = %q, want %q", tt.input, result, tt.expected)
+				t.Errorf("commitrules.CleanCommitMessage(%q) = %q, want %q", tt.input, result, tt.expected)
 			}
 		})
 	}
@@ -148,30 +160,16 @@ func TestProviderValidation(t *testing.T) {
 func TestPromptStructure(t *testing.T) {
 	analysisInput := "feat(service): add new endpoint"
 
-	prompt := `Generate commit message using exact format: type(scope): description
-Max 50 chars. From file paths extract service/module as scope.
-Types: feat, fix, docs, style, refactor, test, chore
-Return ONLY commit message, no extra text.
-
-Examples:
-feat(service:rating): add get RestaurantQuickReview with caching
-fix(api:user): resolve null pointer in validation
-docs(readme): update setup instructions
-
-Git diff analysis:
-` + analysisInput
+	prompt := commitrules.GetPrompt(analysisInput)
 
 	// Verify prompt contains all required elements
 	requiredElements := []string{
 		"type(scope): description",
-		"Max 50 chars",
-		"feat, fix, docs, style, refactor, test, chore",
-		"Return ONLY commit message",
-		"Git diff analysis:",
+		"Maximum 50 characters total",
+		"conventional commit message",
+		"CRITICAL: Respond with ONLY the commit message",
+		"Git diff to analyze:",
 		analysisInput,
-		"feat(service:rating): add get RestaurantQuickReview with caching",
-		"fix(api:user): resolve null pointer in validation",
-		"docs(readme): update setup instructions",
 	}
 
 	for _, element := range requiredElements {
@@ -221,7 +219,7 @@ func TestCommitMessageFormatValidation(t *testing.T) {
 	// Test that valid formats pass our basic validation
 	for _, msg := range validFormats {
 		t.Run("valid/"+msg, func(t *testing.T) {
-			cleaned := cleanCommitMessage(msg)
+			cleaned := commitrules.CleanCommitMessage(msg)
 			if cleaned == "" {
 				t.Errorf("Valid commit message %s was cleaned to empty string", msg)
 			}
@@ -248,8 +246,8 @@ func TestCommitMessageFormatValidation(t *testing.T) {
 	// Test that invalid formats are still processed (cleanCommitMessage doesn't validate format)
 	for _, msg := range invalidFormats {
 		t.Run("invalid/"+msg, func(t *testing.T) {
-			cleaned := cleanCommitMessage(msg)
-			// cleanCommitMessage should still return the message even if format is invalid
+			cleaned := commitrules.CleanCommitMessage(msg)
+			// commitrules.CleanCommitMessage should still return the message even if format is invalid
 			// The format validation would happen elsewhere
 			if cleaned != msg && msg != `"add new feature"` && msg != `'add new feature'` {
 				t.Logf("Message %s was cleaned to %s", msg, cleaned)
@@ -276,18 +274,7 @@ func TestGitRepositoryDetection(t *testing.T) {
 func TestEdgeCases(t *testing.T) {
 	t.Run("empty analysis input", func(t *testing.T) {
 		// Test that empty analysis input is handled
-		prompt := `Generate commit message using exact format: type(scope): description
-Max 50 chars. From file paths extract service/module as scope.
-Types: feat, fix, docs, style, refactor, test, chore
-Return ONLY commit message, no extra text.
-
-Examples:
-feat(service:rating): add get RestaurantQuickReview with caching
-fix(api:user): resolve null pointer in validation
-docs(readme): update setup instructions
-
-Git diff analysis:
-`
+		prompt := commitrules.GetPrompt("")
 		if len(prompt) == 0 {
 			t.Error("Prompt should not be empty even with empty analysis input")
 		}
@@ -295,15 +282,15 @@ Git diff analysis:
 
 	t.Run("very long commit message", func(t *testing.T) {
 		longMsg := strings.Repeat("a", 1000)
-		cleaned := cleanCommitMessage(longMsg)
+		cleaned := commitrules.CleanCommitMessage(longMsg)
 		if cleaned != longMsg {
-			t.Errorf("Long message should not be truncated by cleanCommitMessage")
+			t.Errorf("Long message should not be truncated by commitrules.CleanCommitMessage")
 		}
 	})
 
 	t.Run("special characters in commit message", func(t *testing.T) {
 		specialMsg := "feat: add support for émojis 🎉 and ñoños"
-		cleaned := cleanCommitMessage(specialMsg)
+		cleaned := commitrules.CleanCommitMessage(specialMsg)
 		if cleaned != specialMsg {
 			t.Errorf("Special characters should be preserved")
 		}
@@ -314,7 +301,7 @@ Git diff analysis:
 func BenchmarkCleanCommitMessageSimple(b *testing.B) {
 	message := "feat: add new feature"
 	for i := 0; i < b.N; i++ {
-		cleanCommitMessage(message)
+		commitrules.CleanCommitMessage(message)
 	}
 }
 
@@ -324,7 +311,7 @@ func BenchmarkCleanCommitMessageComplex(b *testing.B) {
 	This is a multiline message with extra content.
 	"`
 	for i := 0; i < b.N; i++ {
-		cleanCommitMessage(message)
+		commitrules.CleanCommitMessage(message)
 	}
 }
 
