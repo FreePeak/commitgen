@@ -68,6 +68,42 @@ func TestCleanCommitMessage(t *testing.T) {
 	}
 }
 
+// resolveProviderCommand returns the command for a given provider and whether it's a Claude provider.
+func resolveProviderCommand(provider string) (string, bool) {
+	switch {
+	case strings.HasPrefix(provider, "claude"):
+		return "claude", true
+	case provider == "gemini":
+		return "gemini", false
+	case provider == "copilot":
+		return "copilot", false
+	default:
+		return "", false
+	}
+}
+
+// validateProviderMapping validates that a provider maps to the expected command.
+func validateProviderMapping(t *testing.T, provider, expectedCmd string, actualCmd string, isClaude bool) {
+	switch {
+	case strings.HasPrefix(provider, "claude"):
+		if !isClaude {
+			t.Errorf("Provider %s should be recognized as claude provider", provider)
+		}
+		if actualCmd != "claude" {
+			t.Errorf("Provider %s should map to 'claude' command, got %s", provider, actualCmd)
+		}
+	case provider == "gemini" || provider == "copilot":
+		if provider != expectedCmd {
+			t.Errorf("Provider %s should map to '%s' command, got %s", provider, expectedCmd, actualCmd)
+		}
+	default:
+		// Unsupported providers
+		if isClaude || actualCmd != "" {
+			t.Errorf("Provider %s should be unsupported", provider)
+		}
+	}
+}
+
 func TestProviderValidation(t *testing.T) {
 	tests := []struct {
 		provider       string
@@ -98,43 +134,8 @@ func TestProviderValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.provider, func(t *testing.T) {
-			// Test provider validation logic
-			var isClaudeProvider bool
-			var command string
-
-			switch {
-			case strings.HasPrefix(tt.provider, "claude"):
-				isClaudeProvider = true
-				command = "claude"
-			case tt.provider == "gemini":
-				isClaudeProvider = false
-				command = "gemini"
-			case tt.provider == "copilot":
-				isClaudeProvider = false
-				command = "copilot"
-			default:
-				isClaudeProvider = false
-				command = ""
-			}
-
-			// For claude-prefixed providers, we expect them to be supported
-			if strings.HasPrefix(tt.provider, "claude") {
-				if !isClaudeProvider {
-					t.Errorf("Provider %s should be recognized as claude provider", tt.provider)
-				}
-				if command != "claude" {
-					t.Errorf("Provider %s should map to 'claude' command, got %s", tt.provider, command)
-				}
-			} else if tt.provider == "gemini" || tt.provider == "copilot" {
-				if tt.provider != "gemini" && tt.provider != "copilot" {
-					t.Errorf("Provider %s should be handled separately", tt.provider)
-				}
-			} else {
-				// Unsupported providers
-				if isClaudeProvider || command != "" {
-					t.Errorf("Provider %s should be unsupported", tt.provider)
-				}
-			}
+			command, isClaude := resolveProviderCommand(tt.provider)
+			validateProviderMapping(t, tt.provider, tt.expectedCmd, command, isClaude)
 
 			// Validate expected behavior
 			if tt.isSupported && command == "" && !strings.HasPrefix(tt.provider, "claude") {
@@ -271,7 +272,7 @@ func TestGitRepositoryDetection(t *testing.T) {
 	var _ bool = isGitRepo()
 }
 
-// Edge case tests
+// Edge case tests.
 func TestEdgeCases(t *testing.T) {
 	t.Run("empty analysis input", func(t *testing.T) {
 		// Test that empty analysis input is handled
@@ -309,7 +310,7 @@ Git diff analysis:
 	})
 }
 
-// Performance tests
+// Performance tests.
 func BenchmarkCleanCommitMessageSimple(b *testing.B) {
 	message := "feat: add new feature"
 	for i := 0; i < b.N; i++ {
