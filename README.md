@@ -238,7 +238,7 @@ go build -o commitgen main.go
 - Go 1.19+
 - Git
 - AI CLI commands with proper API configuration:
-  - `claude-glm` for Claude
+  - `claude` for Claude
   - `gemini` for Gemini
   - `copilot` for Copilot
 - Unix-like system (Linux, macOS)
@@ -269,14 +269,14 @@ Commitgen automatically analyzes git changes and provides context to the AI mode
 **"failed to call [provider] API"**
 - Ensure the AI CLI command is available in your PATH
 - Verify API keys are properly configured
-- Test the AI CLI command directly: `claude-glm` or `gemini` or `copilot`
+- Test the AI CLI command directly: `claude` or `gemini` or `copilot`
 
 #### Provider-Specific Setup
 
 **Claude (Default)**
 ```bash
-# Install claude-glm
-pip install claude-glm
+# Install claude
+pip install claude
 # Configure API key in environment
 export ANTHROPIC_API_KEY="your-key-here"
 ```
