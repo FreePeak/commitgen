@@ -32,7 +32,14 @@ var (
 )
 
 func main() {
-	app := &cli.App{
+	app := createApp()
+	if err := app.Run(os.Args); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func createApp() *cli.App {
+	return &cli.App{
 		Name:    "commitgen",
 		Version: version,
 		Usage:   "AI-powered git commit message generator",
@@ -44,147 +51,166 @@ func main() {
 			},
 		},
 		Commands: []*cli.Command{
-			{
-				Name:    "commit",
-				Aliases: []string{"c"},
-				Usage:   "Generate commit message from changes",
-				Subcommands: []*cli.Command{
-					{
-						Name:    "staged",
-						Aliases: []string{"s"},
-						Usage:   "Generate from staged files",
-						Flags: []cli.Flag{
-							&cli.StringFlag{
-								Name:  "provider",
-								Usage: "AI provider to use (claude*, claude, claude, gemini, copilot)",
-								Value: "claude",
-							},
-						},
-						Action: generateCommitMessage("staged"),
-					},
-					{
-						Name:    "all",
-						Aliases: []string{"a"},
-						Usage:   "Generate from all changes",
-						Flags: []cli.Flag{
-							&cli.StringFlag{
-								Name:  "provider",
-								Usage: "AI provider to use (claude*, claude, claude, gemini, copilot)",
-								Value: "claude",
-							},
-						},
-						Action: generateCommitMessage("all"),
-					},
-					{
-						Name:    "untracked",
-						Aliases: []string{"u"},
-						Usage:   "Generate from untracked files",
-						Flags: []cli.Flag{
-							&cli.StringFlag{
-								Name:  "provider",
-								Usage: "AI provider to use (claude*, claude, claude, gemini, copilot)",
-								Value: "claude",
-							},
-						},
-						Action: generateCommitMessage("untracked"),
-					},
-				},
-			},
+			createCommitCommand(),
 			{
 				Name:   "install",
 				Usage:  "Install commitgen to /usr/local/bin",
 				Action: installBinary,
 			},
-			{
-				Name:    "version",
-				Aliases: []string{"v"},
-				Usage:   "Show version information",
-				Action: func(c *cli.Context) error {
-					fmt.Printf("Commitgen %s\n", version)
-					fmt.Printf("Commit: %s\n", commit)
-					fmt.Printf("Built: %s\n", date)
-					fmt.Printf("Built by: %s\n", builtBy)
-					return nil
-				},
-			},
+			createVersionCommand(),
 		},
 		Action: func(c *cli.Context) error {
 			return generateCommitMessage("staged")(c)
 		},
 	}
+}
 
-	if err := app.Run(os.Args); err != nil {
-		log.Fatal(err)
+func createCommitCommand() *cli.Command {
+	return &cli.Command{
+		Name:    "commit",
+		Aliases: []string{"c"},
+		Usage:   "Generate commit message from changes",
+		Subcommands: []*cli.Command{
+			createStagedCommand(),
+			createAllCommand(),
+			createUntrackedCommand(),
+		},
+	}
+}
+
+func createStagedCommand() *cli.Command {
+	return &cli.Command{
+		Name:    "staged",
+		Aliases: []string{"s"},
+		Usage:   "Generate from staged files",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:  "provider",
+				Usage: "AI provider to use (claude*, claude, claude, gemini, copilot)",
+				Value: "claude",
+			},
+		},
+		Action: generateCommitMessage("staged"),
+	}
+}
+
+func createAllCommand() *cli.Command {
+	return &cli.Command{
+		Name:    "all",
+		Aliases: []string{"a"},
+		Usage:   "Generate from all changes",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:  "provider",
+				Usage: "AI provider to use (claude*, claude, claude, gemini, copilot)",
+				Value: "claude",
+			},
+		},
+		Action: generateCommitMessage("all"),
+	}
+}
+
+func createUntrackedCommand() *cli.Command {
+	return &cli.Command{
+		Name:    "untracked",
+		Aliases: []string{"u"},
+		Usage:   "Generate from untracked files",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:  "provider",
+				Usage: "AI provider to use (claude*, claude, claude, gemini, copilot)",
+				Value: "claude",
+			},
+		},
+		Action: generateCommitMessage("untracked"),
+	}
+}
+
+func createVersionCommand() *cli.Command {
+	return &cli.Command{
+		Name:    "version",
+		Aliases: []string{"v"},
+		Usage:   "Show version information",
+		Action: func(c *cli.Context) error {
+			fmt.Printf("Commitgen %s\n", version)
+			fmt.Printf("Commit: %s\n", commit)
+			fmt.Printf("Built: %s\n", date)
+			fmt.Printf("Built by: %s\n", builtBy)
+			return nil
+		},
 	}
 }
 
 func generateCommitMessage(mode string) cli.ActionFunc {
-	return func(c *cli.Context) error {
-		// Check if we're in a git repository
+	return func(cliContext *cli.Context) error {
 		if !isGitRepo() {
 			return ErrNotGitRepo
 		}
 
-		var analysisInput string
-		var err error
-
-		switch mode {
-		case "staged":
-			analysisInput, err = analyzeStagedChanges()
-		case "all":
-			analysisInput, err = analyzeAllChanges()
-		case "untracked":
-			analysisInput, err = analyzeUntrackedFiles()
-		default:
-			return fmt.Errorf("%w: unknown mode: %s", ErrNoChangesFound, mode)
-		}
-
+		analysisInput, err := getAnalysisInput(mode)
 		if err != nil {
 			return err
 		}
 
-		if analysisInput == "" {
-			return ErrNoChangesFound
-		}
-
-		provider := c.String("provider")
-		if provider == "" {
-			provider = "claude" // default provider like gitcommit function
-		}
-
+		provider := getProvider(cliContext)
 		commitMessage, err := callAIAPI(analysisInput, provider)
 		if err != nil {
 			return fmt.Errorf("failed to generate commit message: %w", err)
 		}
 
 		commitMessage = commitrules.CleanCommitMessage(commitMessage)
+		validateAndShowWarning(commitMessage)
 
-		// Validate commit message format
-		if err := commitrules.ValidateCommitMessage(commitMessage); err != nil {
-			fmt.Printf("Warning: %s\n", err)
+		if confirmCommit(commitMessage) {
+			return executeCommit(mode, commitMessage)
 		}
-
-		fmt.Printf("Generated commit message:\n\"%s\"\n\n", commitMessage)
-
-		fmt.Print("Do you want to use this commit message? [y/N] ")
-		var response string
-		_, err = fmt.Scanln(&response)
-		if err != nil {
-			// Handle scan error (e.g., EOF)
-			response = ""
-		}
-
-		if strings.ToLower(response) == "y" || strings.ToLower(response) == "yes" {
-			if err := executeCommit(mode, commitMessage); err != nil {
-				return err
-			}
-			fmt.Println("Committed successfully!")
-		} else {
-			fmt.Println("Commit cancelled.")
-		}
-
+		fmt.Println("Commit cancelled.")
 		return nil
 	}
+}
+
+func getAnalysisInput(mode string) (string, error) {
+	switch mode {
+	case "staged":
+		return analyzeStagedChanges()
+	case "all":
+		return analyzeAllChanges()
+	case "untracked":
+		return analyzeUntrackedFiles()
+	default:
+		return "", fmt.Errorf("%w: unknown mode: %s", ErrNoChangesFound, mode)
+	}
+}
+
+func getProvider(cliContext *cli.Context) string {
+	provider := cliContext.String("provider")
+	if provider == "" {
+		provider = "claude"
+	}
+	return provider
+}
+
+func validateAndShowWarning(commitMessage string) {
+	if err := commitrules.ValidateCommitMessage(commitMessage); err != nil {
+		fmt.Printf("Warning: %s\n", err)
+	}
+}
+
+func confirmCommit(commitMessage string) bool {
+	fmt.Printf("Generated commit message:\n\"%s\"\n\n", commitMessage)
+	fmt.Print("Do you want to use this commit message? [y/N] ")
+
+	var response string
+	_, err := fmt.Scanln(&response)
+	if err != nil {
+		response = ""
+	}
+
+	confirmed := strings.ToLower(response) == "y" || strings.ToLower(response) == "yes"
+	if confirmed {
+		fmt.Println("Committed successfully!")
+	}
+	return confirmed
 }
 
 func isGitRepo() bool {
@@ -214,7 +240,7 @@ func analyzeStagedChanges() (string, error) {
 	cmd := exec.Command("git", "diff", "--cached", "--name-only")
 	output, err := cmd.Output()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to get staged files: %w", err)
 	}
 
 	stagedFiles := strings.TrimSpace(string(output))
@@ -256,22 +282,10 @@ func analyzeStagedChanges() (string, error) {
 }
 
 func analyzeAllChanges() (string, error) {
-	// Get modified files
-	cmd := exec.Command("git", "diff", "--name-only")
-	modifiedOutput, err := cmd.Output()
+	modifiedFiles, untrackedFiles, err := getModifiedAndUntrackedFiles()
 	if err != nil {
 		return "", err
 	}
-
-	// Get untracked files
-	cmd = exec.Command("git", "ls-files", "--others", "--exclude-standard")
-	untrackedOutput, err := cmd.Output()
-	if err != nil {
-		return "", err
-	}
-
-	modifiedFiles := strings.TrimSpace(string(modifiedOutput))
-	untrackedFiles := strings.TrimSpace(string(untrackedOutput))
 
 	if modifiedFiles == "" && untrackedFiles == "" {
 		return "", ErrNoChangesFound
@@ -281,59 +295,90 @@ func analyzeAllChanges() (string, error) {
 	analysisInput.WriteString("=== ALL CHANGES ANALYSIS ===\n")
 
 	if modifiedFiles != "" {
-		files := strings.Split(modifiedFiles, "\n")
-		analysisInput.WriteString(fmt.Sprintf("Modified files: %d\n", len(files)))
-		analysisInput.WriteString("=== MODIFIED FILES ===\n")
-		analysisInput.WriteString(fmt.Sprintf("%s\n\n", strings.Join(files, " ")))
-		analysisInput.WriteString("=== MODIFICATIONS ===\n")
-
-		for _, file := range files {
-			if !validateFilePath(file) {
-				continue
-			}
-			if _, err := os.Stat(file); err == nil {
-				analysisInput.WriteString(fmt.Sprintf("\n--- %s ---\n", file))
-				//nolint:gosec // G204: file path is validated by validateFilePath()
-				cmd = exec.Command("git", "diff", "--unified=3", file)
-				output, _ := cmd.Output()
-				if len(output) > 2000 {
-					output = output[:2000]
-				}
-				analysisInput.Write(output)
-			}
-		}
+		addModifiedFilesToAnalysis(&analysisInput, modifiedFiles)
 	}
 
 	if untrackedFiles != "" {
-		files := strings.Split(untrackedFiles, "\n")
-		analysisInput.WriteString("\n=== UNTRACKED FILES ===\n")
-		analysisInput.WriteString(fmt.Sprintf("%s\n\n", strings.Join(files, " ")))
-		analysisInput.WriteString("=== FILE CONTENTS ===\n")
-
-		for _, file := range files {
-			if !validateFilePath(file) {
-				continue
-			}
-			if _, err := os.Stat(file); err == nil {
-				analysisInput.WriteString(fmt.Sprintf("\n--- %s (new) ---\n", file))
-				//nolint:gosec // G304: file path is validated by validateFilePath()
-				content, _ := os.ReadFile(file)
-				if len(content) > 2000 {
-					content = content[:2000]
-				}
-				analysisInput.Write(content)
-			}
-		}
+		addUntrackedFilesToAnalysis(&analysisInput, untrackedFiles)
 	}
 
 	return analysisInput.String(), nil
+}
+
+func getModifiedAndUntrackedFiles() (string, string, error) {
+	cmd := exec.Command("git", "diff", "--name-only")
+	modifiedOutput, err := cmd.Output()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get modified files: %w", err)
+	}
+
+	cmd = exec.Command("git", "ls-files", "--others", "--exclude-standard")
+	untrackedOutput, err := cmd.Output()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get untracked files: %w", err)
+	}
+
+	return strings.TrimSpace(string(modifiedOutput)), strings.TrimSpace(string(untrackedOutput)), nil
+}
+
+func addModifiedFilesToAnalysis(analysisInput *strings.Builder, modifiedFiles string) {
+	files := strings.Split(modifiedFiles, "\n")
+	fmt.Fprintf(analysisInput, "Modified files: %d\n", len(files))
+	analysisInput.WriteString("=== MODIFIED FILES ===\n")
+	fmt.Fprintf(analysisInput, "%s\n\n", strings.Join(files, " "))
+	analysisInput.WriteString("=== MODIFICATIONS ===\n")
+
+	for _, file := range files {
+		if !validateFilePath(file) {
+			continue
+		}
+		if _, err := os.Stat(file); err == nil {
+			addFileDiffToAnalysis(analysisInput, file)
+		}
+	}
+}
+
+func addUntrackedFilesToAnalysis(analysisInput *strings.Builder, untrackedFiles string) {
+	files := strings.Split(untrackedFiles, "\n")
+	analysisInput.WriteString("\n=== UNTRACKED FILES ===\n")
+	fmt.Fprintf(analysisInput, "%s\n\n", strings.Join(files, " "))
+	analysisInput.WriteString("=== FILE CONTENTS ===\n")
+
+	for _, file := range files {
+		if !validateFilePath(file) {
+			continue
+		}
+		if _, err := os.Stat(file); err == nil {
+			addFileContentToAnalysis(analysisInput, file)
+		}
+	}
+}
+
+func addFileDiffToAnalysis(analysisInput *strings.Builder, file string) {
+	fmt.Fprintf(analysisInput, "\n--- %s ---\n", file)
+	cmd := exec.Command("git", "diff", "--unified=3", file)
+	output, _ := cmd.Output()
+	if len(output) > 2000 {
+		output = output[:2000]
+	}
+	analysisInput.Write(output)
+}
+
+func addFileContentToAnalysis(analysisInput *strings.Builder, file string) {
+	fmt.Fprintf(analysisInput, "\n--- %s (new) ---\n", file)
+	//nolint:gosec // G304: file path is validated by validateFilePath()
+	content, _ := os.ReadFile(file)
+	if len(content) > 2000 {
+		content = content[:2000]
+	}
+	analysisInput.Write(content)
 }
 
 func analyzeUntrackedFiles() (string, error) {
 	cmd := exec.Command("git", "ls-files", "--others", "--exclude-standard")
 	output, err := cmd.Output()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to get untracked files: %w", err)
 	}
 
 	untrackedFiles := strings.TrimSpace(string(output))
@@ -414,18 +459,21 @@ func executeCommit(mode, commitMessage string) error {
 	case "all", "untracked":
 		// First stage all changes
 		if err := exec.Command("git", "add", ".").Run(); err != nil {
-			return err
+			return fmt.Errorf("failed to stage changes: %w", err)
 		}
 		cmd = exec.Command("git", "commit", "-m", commitMessage)
 	}
 
-	return cmd.Run()
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to commit: %w", err)
+	}
+	return nil
 }
 
 func installBinary(c *cli.Context) error {
 	exePath, err := os.Executable()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get executable path: %w", err)
 	}
 
 	installPath := "/usr/local/bin/commitgen"
@@ -442,7 +490,7 @@ func installBinary(c *cli.Context) error {
 	//nolint:gosec // G304: exePath is validated by validateFilePath()
 	source, err := os.Open(exePath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to open source file: %w", err)
 	}
 	defer func() {
 		if closeErr := source.Close(); closeErr != nil {
@@ -452,7 +500,7 @@ func installBinary(c *cli.Context) error {
 
 	destination, err := os.Create(installPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create destination file: %w", err)
 	}
 	defer func() {
 		if closeErr := destination.Close(); closeErr != nil {
@@ -462,7 +510,7 @@ func installBinary(c *cli.Context) error {
 
 	_, err = io.Copy(destination, source)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to copy file content: %w", err)
 	}
 
 	// Make it executable (0755 is appropriate for system binaries in /usr/local/bin)
@@ -470,7 +518,7 @@ func installBinary(c *cli.Context) error {
 	//nolint:gosec // G302: 0755 is appropriate for system binaries
 	err = os.Chmod(installPath, 0o755)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to set file permissions: %w", err)
 	}
 
 	fmt.Printf("Commitgen installed successfully to %s\n", installPath)

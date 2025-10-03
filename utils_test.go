@@ -7,8 +7,39 @@ import (
 	"github.com/FreePeak/commitgen/pkg/commitrules"
 )
 
+const (
+	providerClaude  = "claude"
+	providerGemini  = "gemini"
+	providerCopilot = "copilot"
+)
+
 func TestCleanCommitMessage(t *testing.T) {
-	tests := []struct {
+	tests := getCleanCommitMessageTestCases()
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := commitrules.CleanCommitMessage(test.input)
+			if result != test.expected {
+				t.Errorf("commitrules.CleanCommitMessage(%q) = %q, want %q", test.input, result, test.expected)
+			}
+		})
+	}
+}
+
+func getCleanCommitMessageTestCases() []struct {
+	name     string
+	input    string
+	expected string
+} {
+	return append(getBasicTestCases(), getComplexTestCases()...)
+}
+
+func getBasicTestCases() []struct {
+	name     string
+	input    string
+	expected string
+} {
+	return []struct {
 		name     string
 		input    string
 		expected string
@@ -38,6 +69,19 @@ func TestCleanCommitMessage(t *testing.T) {
 			input:    "feat: add new feature\n\nThis is the description",
 			expected: "feat: add new feature",
 		},
+	}
+}
+
+func getComplexTestCases() []struct {
+	name     string
+	input    string
+	expected string
+} {
+	return []struct {
+		name     string
+		input    string
+		expected string
+	}{
 		{
 			name:     "empty message",
 			input:    "",
@@ -69,26 +113,17 @@ func TestCleanCommitMessage(t *testing.T) {
 			expected: "refactor(core): extract validation logic",
 		},
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := commitrules.CleanCommitMessage(tt.input)
-			if result != tt.expected {
-				t.Errorf("commitrules.CleanCommitMessage(%q) = %q, want %q", tt.input, result, tt.expected)
-			}
-		})
-	}
 }
 
 // resolveProviderCommand returns the command for a given provider and whether it's a Claude provider.
 func resolveProviderCommand(provider string) (string, bool) {
 	switch {
-	case strings.HasPrefix(provider, "claude"):
-		return "claude", true
-	case provider == "gemini":
-		return "gemini", false
-	case provider == "copilot":
-		return "copilot", false
+	case strings.HasPrefix(provider, providerClaude):
+		return providerClaude, true
+	case provider == providerGemini:
+		return providerGemini, false
+	case provider == providerCopilot:
+		return providerCopilot, false
 	default:
 		return "", false
 	}
@@ -97,14 +132,14 @@ func resolveProviderCommand(provider string) (string, bool) {
 // validateProviderMapping validates that a provider maps to the expected command.
 func validateProviderMapping(t *testing.T, provider, expectedCmd, actualCmd string, isClaude bool) {
 	switch {
-	case strings.HasPrefix(provider, "claude"):
+	case strings.HasPrefix(provider, providerClaude):
 		if !isClaude {
 			t.Errorf("Provider %s should be recognized as claude provider", provider)
 		}
-		if actualCmd != "claude" {
+		if actualCmd != providerClaude {
 			t.Errorf("Provider %s should map to 'claude' command, got %s", provider, actualCmd)
 		}
-	case provider == "gemini" || provider == "copilot":
+	case provider == providerGemini || provider == providerCopilot:
 		if provider != expectedCmd {
 			t.Errorf("Provider %s should map to '%s' command, got %s", provider, expectedCmd, actualCmd)
 		}
@@ -123,18 +158,18 @@ func TestProviderValidation(t *testing.T) {
 		expectedCmd string
 	}{
 		// Claude variants
-		{"claude", true, "claude"},
-		{"claudex", true, "claude"},
-		{"claude", true, "claude"},
-		{"claude", true, "claude"},
-		{"claude-external", true, "claude"},
-		{"claude-custom", true, "claude"},
-		{"claude-2", true, "claude"},
-		{"claudex-external", true, "claude"},
+		{providerClaude, true, providerClaude},
+		{"claudex", true, providerClaude},
+		{"claude", true, providerClaude},
+		{"claude", true, providerClaude},
+		{"claude-external", true, providerClaude},
+		{"claude-custom", true, providerClaude},
+		{"claude-2", true, providerClaude},
+		{"claudex-external", true, providerClaude},
 
 		// Other providers
-		{"gemini", true, "gemini"},
-		{"copilot", true, "copilot"},
+		{providerGemini, true, providerGemini},
+		{providerCopilot, true, providerCopilot},
 
 		// Unsupported providers
 		{"openai", false, ""},
@@ -144,14 +179,14 @@ func TestProviderValidation(t *testing.T) {
 		{"", false, ""},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.provider, func(t *testing.T) {
-			command, isClaude := resolveProviderCommand(tt.provider)
-			validateProviderMapping(t, tt.provider, tt.expectedCmd, command, isClaude)
+	for _, test := range tests {
+		t.Run(test.provider, func(t *testing.T) {
+			command, isClaude := resolveProviderCommand(test.provider)
+			validateProviderMapping(t, test.provider, test.expectedCmd, command, isClaude)
 
 			// Validate expected behavior
-			if tt.isSupported && command == "" && !strings.HasPrefix(tt.provider, "claude") {
-				t.Errorf("Provider %s should be supported but got empty command", tt.provider)
+			if test.isSupported && command == "" && !strings.HasPrefix(test.provider, "claude") {
+				t.Errorf("Provider %s should be supported but got empty command", test.provider)
 			}
 		})
 	}
@@ -267,7 +302,7 @@ func TestGitRepositoryDetection(t *testing.T) {
 	}
 
 	// Type check
-	var _ bool = isGitRepo()
+	_ = isGitRepo()
 }
 
 // Edge case tests.
@@ -316,16 +351,16 @@ func BenchmarkCleanCommitMessageComplex(b *testing.B) {
 }
 
 func BenchmarkProviderValidation(b *testing.B) {
-	providers := []string{"claude", "claude", "claude-external", "gemini", "copilot", "unknown"}
+	providers := []string{providerClaude, "claude", "claude-external", providerGemini, providerCopilot, "unknown"}
 	for i := 0; i < b.N; i++ {
 		provider := providers[i%len(providers)]
 		switch {
-		case strings.HasPrefix(provider, "claude"):
-			_ = "claude"
-		case provider == "gemini":
-			_ = "gemini"
-		case provider == "copilot":
-			_ = "copilot"
+		case strings.HasPrefix(provider, providerClaude):
+			_ = providerClaude
+		case provider == providerGemini:
+			_ = providerGemini
+		case provider == providerCopilot:
+			_ = providerCopilot
 		default:
 			_ = ""
 		}
