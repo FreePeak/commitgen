@@ -1,0 +1,107 @@
+# .goreleaser.yml configuration
+# Install goreleaser: go install github.com/goreleaser/goreleaser@latest
+# Build with: goreleaser build --snapshot --clean
+# Release with: goreleaser release
+
+version: 1
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    binary: commitgen
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+      - -X main.builtBy=goreleaser
+
+archives:
+  - format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    files:
+      - README.md
+      - LICENSE
+    format_overrides:
+      - goos: windows
+        format: zip
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - Merge pull request
+      Merge branch
+
+# Homebrew formula
+brews:
+  - name: commitgen
+    homepage: https://github.com/FreePeak/commitgen
+    repository:
+      owner: FreePeak
+      name: homebrew-tap
+    commit_author:
+      name: goreleaserbot
+      email: goreleaser@carlosbecker.com
+    license: MIT
+    description: AI-powered commit message generator
+
+# GitHub release
+release:
+  github:
+    owner: FreePeak
+    name: commitgen
+  draft: false
+  prerelease: auto
+  name_template: "{{.ProjectName}} v{{.Version}}"
+  header: |
+    ## Commitgen {{.Version}}
+
+    Welcome to this new release!
+  footer: |
+    ## Docker Images
+
+    - `docker pull ghcr.io/freepeak/commitgen:{{.Tag}}`
+    - `docker pull ghcr.io/freepeak/commitgen:latest` (for {{.Tag}})
+
+    ## Installation
+
+    ### Homebrew
+    ```bash
+    brew install FreePeak/tap/commitgen
+    ```
+
+    ### Go Install
+    ```bash
+    go install github.com/FreePeak/commitgen@latest
+    ```
+
+    ### Manual Download
+    Download the appropriate binary from the assets below.
