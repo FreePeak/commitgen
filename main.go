@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -19,11 +20,15 @@ var (
 	builtBy = "local"
 )
 
-// AI provider constants.
-const (
-	ProviderClaude  = "claude"
-	ProviderGemini  = "gemini"
-	ProviderCopilot = "copilot"
+
+// Error definitions.
+var (
+	ErrNotGitRepo          = errors.New("not in a git repository")
+	ErrNoChangesFound      = errors.New("no changes found to analyze")
+	ErrNoStagedFiles       = errors.New("no staged files found")
+	ErrNoUntrackedFiles    = errors.New("no untracked files found")
+	ErrUnsupportedProvider = errors.New("unsupported provider")
+	ErrPermissionDenied    = errors.New("permission denied. Try: sudo commitgen install")
 )
 
 func main() {
@@ -34,8 +39,8 @@ func main() {
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:  "provider",
-				Usage: "AI provider to use (claude*, gemini, copilot)",
-				Value: ProviderClaude,
+				Usage: "AI provider to use (claude*, claude, claude, gemini, copilot)",
+				Value: "claude", // Default to claude like gitcommit function
 			},
 		},
 		Commands: []*cli.Command{
@@ -51,8 +56,8 @@ func main() {
 						Flags: []cli.Flag{
 							&cli.StringFlag{
 								Name:  "provider",
-								Usage: "AI provider to use (claude*, gemini, copilot)",
-								Value: ProviderClaude,
+								Usage: "AI provider to use (claude*, claude, claude, gemini, copilot)",
+								Value: "claude",
 							},
 						},
 						Action: generateCommitMessage("staged"),
@@ -64,8 +69,8 @@ func main() {
 						Flags: []cli.Flag{
 							&cli.StringFlag{
 								Name:  "provider",
-								Usage: "AI provider to use (claude*, gemini, copilot)",
-								Value: ProviderClaude,
+								Usage: "AI provider to use (claude*, claude, claude, gemini, copilot)",
+								Value: "claude",
 							},
 						},
 						Action: generateCommitMessage("all"),
@@ -77,8 +82,8 @@ func main() {
 						Flags: []cli.Flag{
 							&cli.StringFlag{
 								Name:  "provider",
-								Usage: "AI provider to use (claude*, gemini, copilot)",
-								Value: ProviderClaude,
+								Usage: "AI provider to use (claude*, claude, claude, gemini, copilot)",
+								Value: "claude",
 							},
 						},
 						Action: generateCommitMessage("untracked"),
@@ -117,7 +122,7 @@ func generateCommitMessage(mode string) cli.ActionFunc {
 	return func(c *cli.Context) error {
 		// Check if we're in a git repository
 		if !isGitRepo() {
-			return fmt.Errorf("not in a git repository")
+			return ErrNotGitRepo
 		}
 
 		var analysisInput string
@@ -131,7 +136,7 @@ func generateCommitMessage(mode string) cli.ActionFunc {
 		case "untracked":
 			analysisInput, err = analyzeUntrackedFiles()
 		default:
-			return fmt.Errorf("unknown mode: %s", mode)
+			return fmt.Errorf("%w: unknown mode: %s", ErrNoChangesFound, mode)
 		}
 
 		if err != nil {
@@ -139,12 +144,12 @@ func generateCommitMessage(mode string) cli.ActionFunc {
 		}
 
 		if analysisInput == "" {
-			return fmt.Errorf("no changes found to analyze")
+			return ErrNoChangesFound
 		}
 
 		provider := c.String("provider")
 		if provider == "" {
-			provider = ProviderClaude // default provider
+			provider = "claude" // default provider like gitcommit function
 		}
 
 		commitMessage, err := callAIAPI(analysisInput, provider)
@@ -186,6 +191,23 @@ func isGitRepo() bool {
 	return err == nil
 }
 
+// validateFilePath validates that a file path is safe to use.
+func validateFilePath(path string) bool {
+	// Check for path traversal attempts
+	if strings.Contains(path, "..") {
+		return false
+	}
+	// Check for dangerous characters
+	if strings.ContainsAny(path, "&|;<>()$`\"'") {
+		return false
+	}
+	// Check for empty path
+	if path == "" {
+		return false
+	}
+	return true
+}
+
 func analyzeStagedChanges() (string, error) {
 	// Get staged files
 	cmd := exec.Command("git", "diff", "--cached", "--name-only")
@@ -196,7 +218,7 @@ func analyzeStagedChanges() (string, error) {
 
 	stagedFiles := strings.TrimSpace(string(output))
 	if stagedFiles == "" {
-		return "", fmt.Errorf("no staged files found")
+		return "", ErrNoStagedFiles
 	}
 
 	var analysisInput strings.Builder
@@ -214,11 +236,12 @@ func analyzeStagedChanges() (string, error) {
 
 	// Get detailed diff for each file
 	for _, file := range files {
-		if file == "" {
+		if !validateFilePath(file) {
 			continue
 		}
 		if _, err := os.Stat(file); err == nil {
 			analysisInput.WriteString(fmt.Sprintf("\n--- %s ---\n", file))
+			//nolint:gosec // G204: file path is validated by validateFilePath()
 			cmd = exec.Command("git", "diff", "--cached", "--unified=3", "--", file)
 			output, _ := cmd.Output()
 			if len(output) > 2000 {
@@ -250,7 +273,7 @@ func analyzeAllChanges() (string, error) {
 	untrackedFiles := strings.TrimSpace(string(untrackedOutput))
 
 	if modifiedFiles == "" && untrackedFiles == "" {
-		return "", fmt.Errorf("no changes found")
+		return "", ErrNoChangesFound
 	}
 
 	var analysisInput strings.Builder
@@ -264,11 +287,12 @@ func analyzeAllChanges() (string, error) {
 		analysisInput.WriteString("=== MODIFICATIONS ===\n")
 
 		for _, file := range files {
-			if file == "" {
+			if !validateFilePath(file) {
 				continue
 			}
 			if _, err := os.Stat(file); err == nil {
 				analysisInput.WriteString(fmt.Sprintf("\n--- %s ---\n", file))
+				//nolint:gosec // G204: file path is validated by validateFilePath()
 				cmd = exec.Command("git", "diff", "--unified=3", file)
 				output, _ := cmd.Output()
 				if len(output) > 2000 {
@@ -286,11 +310,12 @@ func analyzeAllChanges() (string, error) {
 		analysisInput.WriteString("=== FILE CONTENTS ===\n")
 
 		for _, file := range files {
-			if file == "" {
+			if !validateFilePath(file) {
 				continue
 			}
 			if _, err := os.Stat(file); err == nil {
 				analysisInput.WriteString(fmt.Sprintf("\n--- %s (new) ---\n", file))
+				//nolint:gosec // G304: file path is validated by validateFilePath()
 				content, _ := os.ReadFile(file)
 				if len(content) > 2000 {
 					content = content[:2000]
@@ -312,7 +337,7 @@ func analyzeUntrackedFiles() (string, error) {
 
 	untrackedFiles := strings.TrimSpace(string(output))
 	if untrackedFiles == "" {
-		return "", fmt.Errorf("no untracked files found")
+		return "", ErrNoUntrackedFiles
 	}
 
 	var analysisInput strings.Builder
@@ -323,11 +348,12 @@ func analyzeUntrackedFiles() (string, error) {
 	analysisInput.WriteString("=== FILE CONTENTS ===\n")
 
 	for _, file := range files {
-		if file == "" {
+		if !validateFilePath(file) {
 			continue
 		}
 		if _, err := os.Stat(file); err == nil {
 			analysisInput.WriteString(fmt.Sprintf("\n--- %s ---\n", file))
+			//nolint:gosec // G304: file path is validated by validateFilePath()
 			content, _ := os.ReadFile(file)
 			if len(content) > 2000 {
 				content = content[:2000]
@@ -340,31 +366,29 @@ func analyzeUntrackedFiles() (string, error) {
 }
 
 func callAIAPI(analysisInput, provider string) (string, error) {
-	prompt := `Generate commit message using exact format: type(scope): description
-Max 50 chars. From file paths extract service/module as scope.
-Types: feat, fix, docs, style, refactor, test, chore
-Return ONLY commit message, no extra text.
+	prompt := `Generate a commit message using this exact format: type(scope): description
+
+Requirements:
+- Maximum 50 characters total
+- Use conventional commit types: feat, fix, docs, style, refactor, test, chore
+- Extract scope from file paths (e.g., "api", "ui", "core", "scripts")
+- Write concise, actionable description
+- RETURN ONLY THE COMMIT MESSAGE - no explanations or extra text
 
 Examples:
-feat(service:rating): add get RestaurantQuickReview with caching
-fix(api:user): resolve null pointer in validation
-docs(readme): update setup instructions
+feat(core): add user authentication service
+fix(api): resolve null pointer in validation
+docs(readme): update installation instructions
+refactor(utils): extract validation logic
 
 Git diff analysis:
 ` + analysisInput
 
 	var cmd *exec.Cmd
 
-	switch {
-	case strings.HasPrefix(provider, ProviderClaude):
-		cmd = exec.Command("claude")
-	case provider == ProviderGemini:
-		cmd = exec.Command("gemini")
-	case provider == ProviderCopilot:
-		cmd = exec.Command("copilot")
-	default:
-		return "", fmt.Errorf("unsupported provider: %s", provider)
-	}
+	// Use bash with login shell to access user's aliases and environment
+	// This ensures access to aliases defined in .zshrc or .bashrc
+	cmd = exec.Command("bash", "-lc", provider)
 
 	cmd.Stdin = strings.NewReader(prompt)
 
@@ -417,10 +441,14 @@ func installBinary(c *cli.Context) error {
 
 	// Check if we have permission to write to /usr/local/bin
 	if _, err := os.Stat("/usr/local/bin"); os.IsPermission(err) {
-		return fmt.Errorf("permission denied. Try: sudo commitgen install")
+		return ErrPermissionDenied
 	}
 
 	// Copy binary to install path
+	if !validateFilePath(exePath) {
+		return fmt.Errorf("%w: invalid executable path: %s", ErrPermissionDenied, exePath)
+	}
+	//nolint:gosec // G304: exePath is validated by validateFilePath()
 	source, err := os.Open(exePath)
 	if err != nil {
 		return err
@@ -438,8 +466,10 @@ func installBinary(c *cli.Context) error {
 		return err
 	}
 
-	// Make it executable
-	err = os.Chmod(installPath, 0755)
+	// Make it executable (0755 is appropriate for system binaries in /usr/local/bin)
+	// This allows read and execute by all users, but write only by owner
+	//nolint:gosec // G302: 0755 is appropriate for system binaries
+	err = os.Chmod(installPath, 0o755)
 	if err != nil {
 		return err
 	}

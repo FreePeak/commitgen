@@ -71,3 +71,12 @@ jobs:
 
     - name: Build release binaries
       run: make release
+
+    - name: Test current release binary (if tagged)
+      if: startsWith(github.ref, 'refs/tags/')
+      run: |
+        # Download and test the released binary
+        VERSION=${GITHUB_REF#refs/tags/}
+        wget https://github.com/FreePeak/commitgen/releases/download/${VERSION}/commitgen_Linux_x86_64.tar.gz
+        tar -xzf commitgen_Linux_x86_64.tar.gz
+        ./commitgen version

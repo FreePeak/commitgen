@@ -83,7 +83,7 @@ func resolveProviderCommand(provider string) (string, bool) {
 }
 
 // validateProviderMapping validates that a provider maps to the expected command.
-func validateProviderMapping(t *testing.T, provider, expectedCmd string, actualCmd string, isClaude bool) {
+func validateProviderMapping(t *testing.T, provider, expectedCmd, actualCmd string, isClaude bool) {
 	switch {
 	case strings.HasPrefix(provider, "claude"):
 		if !isClaude {
@@ -106,9 +106,9 @@ func validateProviderMapping(t *testing.T, provider, expectedCmd string, actualC
 
 func TestProviderValidation(t *testing.T) {
 	tests := []struct {
-		provider       string
-		isSupported    bool
-		expectedCmd    string
+		provider    string
+		isSupported bool
+		expectedCmd string
 	}{
 		// Claude variants
 		{"claude", true, "claude"},
@@ -127,7 +127,7 @@ func TestProviderValidation(t *testing.T) {
 		// Unsupported providers
 		{"openai", false, ""},
 		{"chatgpt", false, ""},
-		{"claud", false, ""}, // Too short
+		{"claud", false, ""},   // Too short
 		{"cclaude", false, ""}, // Doesn't start with claude
 		{"", false, ""},
 	}
@@ -208,13 +208,13 @@ func TestCommitMessageFormatValidation(t *testing.T) {
 	}
 
 	invalidFormats := []string{
-		"add new feature", // Missing type and scope
-		"feat", // Missing description
-		"feat:", // Empty description
-		": add new feature", // Missing type
-		"Add new feature", // Capital first letter (should be lowercase)
-		"feat Add new feature", // Missing colon
-		"feat: Add new feature", // Capital description (should be lowercase)
+		"add new feature",        // Missing type and scope
+		"feat",                   // Missing description
+		"feat:",                  // Empty description
+		": add new feature",      // Missing type
+		"Add new feature",        // Capital first letter (should be lowercase)
+		"feat Add new feature",   // Missing colon
+		"feat: Add new feature",  // Capital description (should be lowercase)
 		"feat: add new feature.", // Ends with period
 	}
 

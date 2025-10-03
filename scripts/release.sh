@@ -100,6 +100,7 @@ run_tests_and_build() {
     print_success "Tests passed and build successful!"
 }
 
+
 # Create release commit and tag
 create_release() {
     local new_version=$1
@@ -120,6 +121,7 @@ create_release() {
     git tag -a "$new_version" -m "Release $new_version"
 
     print_success "Created release commit and tag: $new_version"
+    print_info "GoReleaser will automatically update Homebrew formula when tag is pushed"
 }
 
 # Push to GitHub
@@ -205,6 +207,13 @@ main() {
                 echo "  -v, --version VERSION    Specific version to release (e.g., v1.2.3)"
                 echo "  -t, --type TYPE         Auto-bump type: major, minor, patch"
                 echo "  -h, --help              Show this help message"
+                echo
+                echo "Features:"
+                echo "  - Updates version in main.go"
+                echo "  - Pushes tag to trigger GoReleaser"
+                echo "  - GoReleaser handles Homebrew formula automatically"
+                echo "  - Creates GitHub release"
+                echo "  - Runs tests and builds"
                 echo
                 echo "Examples:"
                 echo "  $0 -t patch             # Bump patch version"
