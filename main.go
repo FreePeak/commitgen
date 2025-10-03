@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/FreePeak/commitgen/pkg/commitrules"
 	"github.com/urfave/cli/v2"
 )
 
@@ -156,10 +157,11 @@ func generateCommitMessage(mode string) cli.ActionFunc {
 			return fmt.Errorf("failed to generate commit message: %w", err)
 		}
 
-		commitMessage = cleanCommitMessage(commitMessage)
+		commitMessage = commitrules.CleanCommitMessage(commitMessage)
 
-		if len(commitMessage) > 72 {
-			fmt.Printf("Warning: Commit message is %d characters (recommended: <72)\n", len(commitMessage))
+		// Validate commit message format
+		if err := commitrules.ValidateCommitMessage(commitMessage); err != nil {
+			fmt.Printf("Warning: %s\n", err)
 		}
 
 		fmt.Printf("Generated commit message:\n\"%s\"\n\n", commitMessage)
@@ -365,27 +367,32 @@ func analyzeUntrackedFiles() (string, error) {
 }
 
 func callAIAPI(analysisInput, provider string) (string, error) {
-	prompt := `Generate a commit message using this exact format: type(scope): description
+	prompt := commitrules.GetPrompt(analysisInput)
 
-Requirements:
-- Maximum 50 characters total
-- Use conventional commit types: feat, fix, docs, style, refactor, test, chore
-- Extract scope from file paths (e.g., "api", "ui", "core", "scripts")
-- Write concise, actionable description
-- RETURN ONLY THE COMMIT MESSAGE - no explanations or extra text
+	var cmd *exec.Cmd
 
-Examples:
-feat(core): add user authentication service
-fix(api): resolve null pointer in validation
-docs(readme): update installation instructions
-refactor(utils): extract validation logic
-
-Git diff analysis:
-` + analysisInput
-
-	// Use bash with login shell to access user's aliases and environment
-	// This ensures access to aliases defined in .zshrc or .bashrc
-	cmd := exec.Command("bash", "-lc", provider)
+	// Handle special providers that are typically defined as aliases
+	switch provider {
+	case "claudex2":
+		// Expand the claudex2 alias with actual environment variables
+		cmd = exec.Command("claude")
+		cmd.Env = append(os.Environ(),
+			"ANTHROPIC_BASE_URL=https://open.bigmodel.cn/api/anthropic",
+			"ANTHROPIC_API_KEY=40574464bbb949aa8323462fc7018fb0.QAedKFcjo0dkzzX4",
+			"ANTHROPIC_MODEL=glm-4.6",
+		)
+	case "claudex3":
+		// Expand the claudex3 alias with actual environment variables
+		cmd = exec.Command("claude")
+		cmd.Env = append(os.Environ(),
+			"ANTHROPIC_BASE_URL=https://open.bigmodel.cn/api/anthropic",
+			"ANTHROPIC_API_KEY=fc40be21f0c942898c8c76ff8adbcb03.UAD9tIMBeng4BYGM",
+			"ANTHROPIC_MODEL=glm-4.6",
+		)
+	default:
+		// For other providers, try direct execution first
+		cmd = exec.Command(provider)
+	}
 
 	cmd.Stdin = strings.NewReader(prompt)
 
@@ -397,19 +404,6 @@ Git diff analysis:
 	return strings.TrimSpace(string(output)), nil
 }
 
-func cleanCommitMessage(message string) string {
-	// Remove quotes and extra whitespace
-	message = strings.Trim(message, `"'`)
-	message = strings.TrimSpace(message)
-
-	// Remove any remaining explanatory text
-	lines := strings.Split(message, "\n")
-	if len(lines) > 1 {
-		message = strings.TrimSpace(lines[0])
-	}
-
-	return message
-}
 
 func executeCommit(mode, commitMessage string) error {
 	var cmd *exec.Cmd
