@@ -1,4 +1,4 @@
-# Commitgen - AI-Powered Git Commit Message Generator
+# CommitGen - AI-Powered Git Commit Message Generator
 
 A standalone CLI tool that generates conventional commit messages using AI. Commitgen analyzes your git changes and creates descriptive, properly formatted commit messages automatically.
 
