@@ -1,19 +1,28 @@
 package commitrules
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
 )
 
-// CommitRule defines the structure for commit message rules
+// Define static errors for commit message validation.
+var (
+	ErrInvalidFormat = errors.New("invalid commit message format")
+	ErrMissingType   = errors.New("missing commit type")
+	ErrInvalidType   = errors.New("invalid commit type")
+	ErrTooLong       = errors.New("commit message too long")
+)
+
+// CommitRule defines the structure for commit message rules.
 type CommitRule struct {
 	Type        string
 	Description string
 	Examples    []string
 }
 
-// CommitRules holds all available commit types and their rules
+// CommitRules holds all available commit types and their rules.
 var CommitRules = map[string]CommitRule{
 	"feat": {
 		Type:        "feat",
@@ -52,16 +61,16 @@ var CommitRules = map[string]CommitRule{
 	},
 }
 
-// GetCommitTypes returns all available commit types
+// GetCommitTypes returns all available commit types.
 func GetCommitTypes() []string {
-	var types []string
+	types := make([]string, 0, len(CommitRules))
 	for commitType := range CommitRules {
 		types = append(types, commitType)
 	}
 	return types
 }
 
-// GetPrompt generates the commit message prompt based on analysis input
+// GetPrompt generates the commit message prompt based on analysis input.
 func GetPrompt(analysisInput string) string {
 	commitTypesList := strings.Join(GetCommitTypes(), ", ")
 
@@ -92,7 +101,7 @@ Git diff to analyze:
 	return prompt
 }
 
-// CleanCommitMessage cleans and formats the generated commit message
+// CleanCommitMessage cleans and formats the generated commit message.
 func CleanCommitMessage(message string) string {
 	// Remove quotes and extra whitespace
 	message = strings.Trim(message, `"'`)
@@ -144,31 +153,31 @@ func CleanCommitMessage(message string) string {
 	return firstLine
 }
 
-// ValidateCommitMessage validates if a commit message follows the conventional format
+// ValidateCommitMessage validates if a commit message follows the conventional format.
 func ValidateCommitMessage(message string) error {
 	message = strings.TrimSpace(message)
 
 	// Check basic format type(scope): description
 	parts := strings.SplitN(message, ":", 2)
 	if len(parts) != 2 {
-		return fmt.Errorf("commit message must follow format: type(scope): description")
+		return fmt.Errorf("commit message must follow format: type(scope): description: %w", ErrInvalidFormat)
 	}
 
 	// Check if type is valid
 	typeAndScope := strings.TrimSpace(parts[0])
 	scopeParts := strings.SplitN(typeAndScope, "(", 2)
 	if len(scopeParts) == 0 {
-		return fmt.Errorf("commit message must have a type")
+		return fmt.Errorf("commit message must have a type: %w", ErrMissingType)
 	}
 
 	commitType := scopeParts[0]
 	if _, exists := CommitRules[commitType]; !exists {
-		return fmt.Errorf("invalid commit type: %s. Valid types: %s", commitType, strings.Join(GetCommitTypes(), ", "))
+		return fmt.Errorf("invalid commit type: %s. Valid types: %s: %w", commitType, strings.Join(GetCommitTypes(), ", "), ErrInvalidType)
 	}
 
 	// Check length
 	if len(message) > 72 {
-		return fmt.Errorf("commit message is too long: %d characters (maximum: 72)", len(message))
+		return fmt.Errorf("commit message is too long: %d characters (maximum: 72): %w", len(message), ErrTooLong)
 	}
 
 	if len(message) > 50 {

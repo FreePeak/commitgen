@@ -444,13 +444,21 @@ func installBinary(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	defer source.Close()
+	defer func() {
+		if closeErr := source.Close(); closeErr != nil {
+			fmt.Printf("Warning: failed to close source file: %v\n", closeErr)
+		}
+	}()
 
 	destination, err := os.Create(installPath)
 	if err != nil {
 		return err
 	}
-	defer destination.Close()
+	defer func() {
+		if closeErr := destination.Close(); closeErr != nil {
+			fmt.Printf("Warning: failed to close destination file: %v\n", closeErr)
+		}
+	}()
 
 	_, err = io.Copy(destination, source)
 	if err != nil {
