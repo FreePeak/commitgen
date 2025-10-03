@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -e
+
+# Create symlink if /usr/local/bin exists and is in PATH
+if [ -d "/usr/local/bin" ]; then
+    if echo $PATH | grep -q "/usr/local/bin"; then
+        ln -sf /opt/commitgen/bin/commitgen /usr/local/bin/commitgen
+    fi
+fi
+
+echo "Commitgen installed successfully!"
+echo "Run 'commitgen --help' to get started."

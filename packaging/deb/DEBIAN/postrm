@@ -1,0 +1,15 @@
+#!/bin/bash
+
+set -e
+
+# Remove symlink if it exists
+if [ -L "/usr/local/bin/commitgen" ]; then
+    rm -f /usr/local/bin/commitgen
+fi
+
+# Remove installation directory
+if [ -d "/opt/commitgen" ]; then
+    rm -rf /opt/commitgen
+fi
+
+echo "Commitgen uninstalled successfully."

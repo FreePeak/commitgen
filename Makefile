@@ -2,11 +2,11 @@
 
 # Build the binary
 build:
-	go build -o harvey main.go
+	go build -o commitgen main.go
 
 # Install to /usr/local/bin
 install: build
-	./harvey install
+	./commitgen install
 
 # Run tests
 test:
@@ -14,7 +14,7 @@ test:
 
 # Clean build artifacts
 clean:
-	rm -f harvey
+	rm -f commitgen
 
 # Install dependencies
 deps:
@@ -22,19 +22,19 @@ deps:
 
 # Development build with race detection
 dev:
-	go build -race -o harvey main.go
+	go build -race -o commitgen main.go
 
 # Release build
 release:
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o harvey-linux-amd64 main.go
-	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="-w -s" -o harvey-darwin-amd64 main.go
-	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="-w -s" -o harvey-darwin-arm64 main.go
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o commitgen-linux-amd64 main.go
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="-w -s" -o commitgen-darwin-amd64 main.go
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="-w -s" -o commitgen-darwin-arm64 main.go
 
 # Show available targets
 help:
 	@echo "Available targets:"
-	@echo "  build    - Build the harvey binary"
-	@echo "  install  - Build and install harvey to /usr/local/bin"
+	@echo "  build    - Build the commitgen binary"
+	@echo "  install  - Build and install commitgen to /usr/local/bin"
 	@echo "  test     - Run all tests"
 	@echo "  clean    - Remove build artifacts"
 	@echo "  deps     - Install dependencies"

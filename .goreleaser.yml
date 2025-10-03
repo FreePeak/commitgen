@@ -73,6 +73,44 @@ brews:
     license: MIT
     description: AI-powered commit message generator
 
+# Debian packages
+nfpms:
+  -
+    package_name: commitgen
+    homepage: https://github.com/FreePeak/commitgen
+    description: AI-powered git commit message generator
+    maintainer: FreePeak <contact@freepeak.dev>
+    license: MIT
+    formats:
+      - deb
+      - rpm
+      - archlinux
+    dependencies:
+      - git
+    recommends:
+      - git
+    contents:
+      - src: ./README.md
+        dst: /usr/share/doc/commitgen/README.md
+      - src: ./LICENSE
+        dst: /usr/share/licenses/commitgen/LICENSE
+
+# Snap packages
+snapcrafts:
+  - summary: AI-powered git commit message generator
+    description: |
+      Commitgen is a CLI tool that generates conventional commit messages
+      using AI providers like Claude, Gemini, and Copilot. It analyzes
+      your git changes and creates appropriate commit messages
+      following best practices.
+    grade: stable
+    confinement: strict
+    publish: true
+    license: MIT
+    apps:
+      commitgen:
+        plugs: ["home", "network"]
+
 # GitHub release
 release:
   github:

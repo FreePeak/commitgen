@@ -36,7 +36,68 @@ A standalone CLI tool that generates conventional commit messages using AI. Comm
 
 ## Installation
 
-### From Source
+### 🚀 One-Command Installation (Recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/FreePeak/commitgen/main/install-package.sh | bash
+```
+
+This script automatically detects your OS and installs commitgen using the best available package manager.
+
+### 📦 Package Manager Installation
+
+#### macOS (Homebrew)
+```bash
+brew tap FreePeak/tap
+brew install commitgen
+```
+
+#### Go Install (Cross-platform)
+```bash
+go install github.com/FreePeak/commitgen@latest
+```
+
+#### Debian/Ubuntu (APT)
+```bash
+# Download and install .deb package
+curl -fsSL https://raw.githubusercontent.com/FreePeak/commitgen/main/install-package.sh | METHOD=2 bash
+```
+
+#### Arch Linux (Pacman/AUR)
+```bash
+# Using yay (recommended)
+yay -S commitgen
+
+# Or using paru
+paru -S commitgen
+
+# Or manually
+git clone https://aur.archlinux.org/commitgen.git
+cd commitgen
+makepkg -si
+```
+
+#### Snap (Cross-platform)
+```bash
+sudo snap install commitgen
+```
+
+### 🐳 Docker Installation
+```bash
+# Pull from GitHub Container Registry
+docker pull ghcr.io/freepeak/commitgen:latest
+
+# Run with volume mount
+docker run --rm -v $(pwd):/app -w /app ghcr.io/freepeak/commitgen:latest commit staged
+```
+
+### 📥 Manual Binary Download
+```bash
+# Download the latest binary for your platform
+curl -fsSL https://raw.githubusercontent.com/FreePeak/commitgen/main/install.sh | bash
+```
+
+### 🔧 From Source
 
 ```bash
 git clone https://github.com/FreePeak/commitgen.git
@@ -45,7 +106,7 @@ go build -o commitgen main.go
 ./commitgen install
 ```
 
-### Quick Install
+### ⚡ Quick Install (Power users)
 
 ```bash
 # Clone and build in one command
