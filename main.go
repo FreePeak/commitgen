@@ -11,11 +11,26 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+// Version information (set by GoReleaser)
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+	builtBy = "local"
+)
 
 func main() {
 	app := &cli.App{
-		Name:  "commitgen",
-		Usage: "AI-powered git commit message generator",
+		Name:    "commitgen",
+		Version: version,
+		Usage:   "AI-powered git commit message generator",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:  "provider",
+				Usage: "AI provider to use (claude*, gemini, copilot)",
+				Value: "claude",
+			},
+		},
 		Commands: []*cli.Command{
 			{
 				Name:    "commit",
@@ -68,12 +83,17 @@ func main() {
 				Usage:  "Install commitgen to /usr/local/bin",
 				Action: installBinary,
 			},
-		},
-		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:  "provider",
-				Usage: "AI provider to use (claude*, gemini, copilot)",
-				Value: "claude",
+			{
+				Name:    "version",
+				Aliases: []string{"v"},
+				Usage:   "Show version information",
+				Action: func(c *cli.Context) error {
+					fmt.Printf("Commitgen %s\n", version)
+					fmt.Printf("Commit: %s\n", commit)
+					fmt.Printf("Built: %s\n", date)
+					fmt.Printf("Built by: %s\n", builtBy)
+					return nil
+				},
 			},
 		},
 		Action: func(c *cli.Context) error {
