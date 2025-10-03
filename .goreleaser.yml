@@ -60,18 +60,18 @@ changelog:
       - "^Merge pull request"
       - "^Merge branch"
 
-# Homebrew formula (commented out until tap repository exists)
-# brews:
-#   - name: commitgen
-#     homepage: https://github.com/FreePeak/commitgen
-#     repository:
-#       owner: FreePeak
-#       name: homebrew-tap
-#     commit_author:
-#       name: goreleaserbot
-#       email: goreleaser@carlosbecker.com
-#     license: MIT
-#     description: AI-powered commit message generator
+# Homebrew formula
+brews:
+  - name: commitgen
+    homepage: https://github.com/FreePeak/commitgen
+    repository:
+      owner: FreePeak
+      name: homebrew-tap
+    commit_author:
+      name: linhdmn
+      email: mnhatlinh.doan@gmail.com
+    license: MIT
+    description: AI-powered commit message generator
 
 # Debian packages (simplified)
 nfpms:

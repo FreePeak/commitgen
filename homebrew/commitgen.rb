@@ -17,6 +17,6 @@ class Commitgen < Formula
   end
 
   test do
-    system "#{bin}/commitgen", "--help"
+    system "#{bin}/commitgen", "version"
   end
 end
