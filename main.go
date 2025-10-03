@@ -15,7 +15,7 @@ import (
 
 // Version information (set by GoReleaser).
 var (
-	version = "v0.1.4"
+	version = "v0.1.4" // test comment
 	commit  = "none"
 	date    = "unknown"
 	builtBy = "local"
