@@ -1,6 +1,6 @@
 module github.com/FreePeak/commitgen
 
-go 1.25.1
+go 1.21
 
 require github.com/urfave/cli/v2 v2.27.7
 

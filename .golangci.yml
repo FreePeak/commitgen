@@ -1,0 +1,45 @@
+run:
+  timeout: 5m
+  go: '1.21'
+
+linters:
+  enable:
+    - gofmt
+    - goimports
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    - gosimple
+    - structcheck
+    - varcheck
+    - ineffassign
+    - deadcode
+    - typecheck
+    - gosec
+    - misspell
+    - unconvert
+    - dupl
+    - goconst
+    - gocyclo
+
+linters-settings:
+  goimports:
+    local-prefixes: github.com/FreePeak/commitgen
+
+  gocyclo:
+    min-complexity: 15
+
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+
+  dupl:
+    threshold: 100
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gosec
+        - dupl
