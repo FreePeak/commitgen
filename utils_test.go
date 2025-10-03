@@ -159,13 +159,9 @@ func TestProviderValidation(t *testing.T) {
 	}{
 		// Claude variants
 		{providerClaude, true, providerClaude},
-		{"claudex", true, providerClaude},
-		{"claude", true, providerClaude},
-		{"claude", true, providerClaude},
 		{"claude-external", true, providerClaude},
 		{"claude-custom", true, providerClaude},
 		{"claude-2", true, providerClaude},
-		{"claudex-external", true, providerClaude},
 
 		// Other providers
 		{providerGemini, true, providerGemini},
@@ -351,7 +347,7 @@ func BenchmarkCleanCommitMessageComplex(b *testing.B) {
 }
 
 func BenchmarkProviderValidation(b *testing.B) {
-	providers := []string{providerClaude, "claude", "claude-external", providerGemini, providerCopilot, "unknown"}
+	providers := []string{providerClaude, "claude-external", providerGemini, providerCopilot, "unknown"}
 	for i := 0; i < b.N; i++ {
 		provider := providers[i%len(providers)]
 		switch {

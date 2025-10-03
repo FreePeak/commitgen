@@ -46,8 +46,8 @@ func createApp() *cli.App {
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:  "provider",
-				Usage: "AI provider to use (claude*, claude, claude, gemini, copilot)",
-				Value: "claude", // Default to claude like gitcommit function
+				Usage: "AI provider to use (claude*, gemini, copilot)",
+				Value: "claude",
 			},
 		},
 		Commands: []*cli.Command{
@@ -86,7 +86,7 @@ func createStagedCommand() *cli.Command {
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:  "provider",
-				Usage: "AI provider to use (claude*, claude, claude, gemini, copilot)",
+				Usage: "AI provider to use (claude*, gemini, copilot)",
 				Value: "claude",
 			},
 		},
@@ -102,7 +102,7 @@ func createAllCommand() *cli.Command {
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:  "provider",
-				Usage: "AI provider to use (claude*, claude, claude, gemini, copilot)",
+				Usage: "AI provider to use (claude*, gemini, copilot)",
 				Value: "claude",
 			},
 		},
@@ -118,7 +118,7 @@ func createUntrackedCommand() *cli.Command {
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:  "provider",
-				Usage: "AI provider to use (claude*, claude, claude, gemini, copilot)",
+				Usage: "AI provider to use (claude*, gemini, copilot)",
 				Value: "claude",
 			},
 		},
@@ -414,30 +414,8 @@ func analyzeUntrackedFiles() (string, error) {
 func callAIAPI(analysisInput, provider string) (string, error) {
 	prompt := commitrules.GetPrompt(analysisInput)
 
-	var cmd *exec.Cmd
-
-	// Handle special providers that are typically defined as aliases
-	switch provider {
-	case "claude":
-		// Expand the claude alias with actual environment variables
-		cmd = exec.Command("claude")
-		cmd.Env = append(os.Environ(),
-			"ANTHROPIC_BASE_URL=https://open.bigmodel.cn/api/anthropic",
-			"ANTHROPIC_API_KEY=REDACTED_API_KEY",
-			"ANTHROPIC_MODEL=glm-4.6",
-		)
-	case "claude":
-		// Expand the claude alias with actual environment variables
-		cmd = exec.Command("claude")
-		cmd.Env = append(os.Environ(),
-			"ANTHROPIC_BASE_URL=https://open.bigmodel.cn/api/anthropic",
-			"ANTHROPIC_API_KEY=REDACTED_API_KEY",
-			"ANTHROPIC_MODEL=glm-4.6",
-		)
-	default:
-		// For other providers, try direct execution first
-		cmd = exec.Command(provider)
-	}
+	// Execute the provider command directly
+	cmd := exec.Command(provider)
 
 	cmd.Stdin = strings.NewReader(prompt)
 
