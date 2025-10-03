@@ -162,7 +162,11 @@ func generateCommitMessage(mode string) cli.ActionFunc {
 
 		fmt.Print("Do you want to use this commit message? [y/N] ")
 		var response string
-		fmt.Scanln(&response)
+		_, err = fmt.Scanln(&response)
+		if err != nil {
+			// Handle scan error (e.g., EOF)
+			response = ""
+		}
 
 		if strings.ToLower(response) == "y" || strings.ToLower(response) == "yes" {
 			if err := executeCommit(mode, commitMessage); err != nil {
@@ -215,7 +219,7 @@ func analyzeStagedChanges() (string, error) {
 		}
 		if _, err := os.Stat(file); err == nil {
 			analysisInput.WriteString(fmt.Sprintf("\n--- %s ---\n", file))
-			cmd = exec.Command("git", "diff", "--cached", "--unified=3", file)
+			cmd = exec.Command("git", "diff", "--cached", "--unified=3", "--", file)
 			output, _ := cmd.Output()
 			if len(output) > 2000 {
 				output = output[:2000]
