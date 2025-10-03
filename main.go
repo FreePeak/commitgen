@@ -20,7 +20,6 @@ var (
 	builtBy = "local"
 )
 
-
 // Error definitions.
 var (
 	ErrNotGitRepo          = errors.New("not in a git repository")
@@ -384,11 +383,9 @@ refactor(utils): extract validation logic
 Git diff analysis:
 ` + analysisInput
 
-	var cmd *exec.Cmd
-
 	// Use bash with login shell to access user's aliases and environment
 	// This ensures access to aliases defined in .zshrc or .bashrc
-	cmd = exec.Command("bash", "-lc", provider)
+	cmd := exec.Command("bash", "-lc", provider)
 
 	cmd.Stdin = strings.NewReader(prompt)
 
